@@ -20,6 +20,7 @@
     createEditorUtils,
     findStartIndex,
     getBuiltinActions,
+    handleImageUpload,
   } from './editor';
   import Status from './status.svelte';
   import { icons } from './icons';
@@ -64,7 +65,7 @@
   let root: HTMLElement;
   let previewEl: HTMLElement;
   let textarea: HTMLTextAreaElement;
-  let containerWidth = Infinity;
+  let containerWidth = Infinity; // TODO: first screen
 
   let codemirror: ReturnType<typeof factory>;
   let editor: Editor;
@@ -186,10 +187,13 @@
             m.location.start.line - 1,
             m.location.start.column - 1
           ),
-          to: codemirror.Pos(
-            m.location.end.line - 1,
-            m.location.end.column - 1
-          ),
+          to:
+            m.location.end.line == null // TODO: why null?
+              ? codemirror.Pos(m.location.start.line - 1)
+              : codemirror.Pos(
+                  m.location.end.line - 1,
+                  m.location.end.column - 1
+                ),
           message: m.message,
         };
         return a;
@@ -263,6 +267,8 @@
       // console.log(editPs, previewPs);
     }, 1000);
     const editorScrollHandler = () => {
+      if (overridePreview) return;
+
       if (!syncEnabled) return;
 
       if (previewCalled) {
@@ -291,6 +297,8 @@
       editCalled = true;
     };
     const previewScrollHandler = () => {
+      if (overridePreview) return;
+
       // find the current block in the view
       updateBlockPositions();
       currentBlockIndex = findStartIndex(
@@ -327,8 +335,12 @@
     });
 
     // handle image drop and paste
-    const handleImages = async (itemList: DataTransferItemList | undefined) => {
+    const handleImages = async (
+      e: Event,
+      itemList: DataTransferItemList | undefined
+    ) => {
       if (!uploadImages) return;
+
       const files = Array.from(itemList ?? [])
         .map((item) => {
           if (item.type.startsWith('image/')) {
@@ -336,29 +348,23 @@
           }
         })
         .filter((f): f is File => f != null);
-      const imgs = await uploadImages(files);
-      if (!imgs.length) return;
 
-      context.appendBlock(
-        imgs
-          .map(({ url, alt, title }, i) => {
-            alt = alt ?? files[i].name;
-            return `![${alt}](${url}${title ? ` "${title}"` : ''})`;
-          })
-          .join('\n\n')
-      );
+      if (files.length) {
+        e.preventDefault(); // important
+        await handleImageUpload(context, uploadImages, files);
+      }
     };
 
     editor.on('drop', async (_, e) => {
-      handleImages(e.dataTransfer?.items);
+      handleImages(e, e.dataTransfer?.items);
     });
     editor.on('paste', async (_, e) => {
-      handleImages(e.clipboardData?.items);
+      handleImages(e, e.clipboardData?.items);
     });
 
     // @ts-ignore
     new ResizeObserver((entries) => {
-      containerWidth = entries[0].borderBoxSize[0].inlineSize;
+      containerWidth = entries[0].contentRect.width;
       // console.log(containerWidth);
     }).observe(root, { box: 'border-box' });
 
@@ -454,7 +460,7 @@
   </div>
   <Status
     locale={mergedLocale}
-    {split}
+    showSync={!overridePreview && split}
     value={debouncedValue}
     {syncEnabled}
     on:sync={(e) => {

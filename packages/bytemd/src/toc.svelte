@@ -4,6 +4,7 @@
   import type { Root, Element } from 'hast';
   import type { BytemdLocale } from './types';
   import { createEventDispatcher } from 'svelte';
+  import visit from 'unist-util-visit';
 
   export let hast: Root;
   export let currentBlockIndex: number;
@@ -16,26 +17,33 @@
   let minLevel = 6;
   let currentHeadingIndex = 0;
 
+  function stringifyHeading(e: Element) {
+    let result = '';
+    visit(e, (node) => {
+      if (node.type === 'text') {
+        result += node.value;
+      }
+    });
+    return result;
+  }
+
   $: (() => {
     items = [];
     currentHeadingIndex = 0;
 
     hast.children
-      .filter((v): v is Element => v.type === 'element')
-      .forEach(({ tagName, children }, index) => {
-        for (let i = 6; i > 0; i--) {
-          if (tagName === 'h' + i && children[0]) {
-            minLevel = Math.min(minLevel, i);
-            items.push({
-              level: i,
-              text: children[0].value as string, // TODO: complicated children
-            });
+      .filter((v): v is Element => v.type === 'element' && v.tagName[0] === 'h' && !!v.children.length)
+      .forEach((node, index) => {
+        const i = Number(node.tagName[1]);
+        minLevel = Math.min(minLevel, i);
+        items.push({
+          level: i,
+          text: stringifyHeading(node),
+        });
 
-            // console.log(currentBlockIndex, index);
-            if (currentBlockIndex >= index) {
-              currentHeadingIndex = items.length - 1;
-            }
-          }
+        // console.log(currentBlockIndex, index);
+        if (currentBlockIndex >= index) {
+          currentHeadingIndex = items.length - 1;
         }
       });
   })();

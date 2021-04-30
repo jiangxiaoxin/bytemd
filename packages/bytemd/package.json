@@ -1,6 +1,6 @@
 {
   "name": "bytemd",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "description": "A hackable Markdown editor built with Svelte",
   "author": "Rongjian Zhang <pd4d10@gmail.com>",
   "license": "MIT",
@@ -25,7 +25,7 @@
     "lib"
   ],
   "dependencies": {
-    "@popperjs/core": "^2.9.1",
+    "@popperjs/core": "^2.9.2",
     "@types/codemirror": "^0.0.108",
     "@types/lodash.debounce": "^4.0.6",
     "@types/lodash.throttle": "^4.1.6",
@@ -44,6 +44,7 @@
     "tippy.js": "^6.3.1",
     "tsdef": "^0.0.14",
     "unified": "^9.2.1",
+    "unist-util-visit": "^2.0.3",
     "vfile": "^4.2.1",
     "word-count": "^0.2.2"
   }
